@@ -1,6 +1,5 @@
-#pragma once
-
 #include <string>
+
 #include <cpprest/http_listener.h>
 
 using http_listener = web::http::experimental::listener::http_listener;
@@ -20,22 +19,11 @@ public:
                 return listener;
         }
 
-        static void reply_json(const web::http::http_request& msg,
-                               web::http::status_code status,
-                               const web::json::value& body) {
-                web::http::http_response response(status);
-                response.headers().add("Access-Control-Allow-Origin", "*");
-                response.headers().add("Access-Control-Allow-Methods", "GET, PUT, DELETE, OPTIONS");
-                response.headers().add("Access-Control-Allow-Headers", "Content-Type");
-                response.set_body(body);
-                msg.reply(response);
-        }
-
 private:
         static void allowAll(web::http::http_request msg) {
                 web::http::http_response response(200);
                 response.headers().add("Access-Control-Allow-Origin", "*");
-                response.headers().add("Access-Control-Allow-Methods", "GET, PUT, DELETE, OPTIONS");
+                response.headers().add("Access-Control-Allow-Methods", "GET, PUT, DELETE");
                 response.headers().add("Access-Control-Allow-Headers", "Content-Type");
 
                 msg.reply(response);

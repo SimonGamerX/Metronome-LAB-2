@@ -5,17 +5,11 @@
 class metronome
 {
 public:
-	// Set to 4 to record the most recent 4 taps (giving 3 intervals),
-	// satisfying the requirement: "At least 4 taps are required to create a valid BPM measurement."
-	enum { beat_samples = 4 };
+	enum { beat_samples = 3 };
 
 public:
 	metronome()
-	: m_timing(false), m_beat_count(0) {
-		for (size_t i = 0; i < beat_samples; ++i) {
-			m_beats[i] = 0;
-		}
-	}
+	: m_timing(false), m_beat_count(0) {}
 	~metronome() {}
 
 public:
@@ -40,4 +34,3 @@ private:
 	size_t m_beats[beat_samples];
 	size_t m_beat_count;
 };
-

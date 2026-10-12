@@ -15,7 +15,37 @@
 
 ---
 
-## 2. Hardware Setup & Pin Mapping
+## 2. Directory Structure & File Roles
+
+```text
+metronome/
+├── Memory.md                       <- Persistent project memory & revision log
+├── contributions_template.md       <- Group contribution report template for submission
+│
+├── metronome/                      <- PROFESSOR'S ORIGINAL STARTER SKELETON (UNTOUCHED)
+│   ├── CMakeLists.txt              <- Original starter CMakeLists
+│   ├── main.cpp                    <- Original starter main.cpp (dummy 1s blink & /answer)
+│   ├── metronome.hpp               <- Original starter metronome.hpp (beat_samples = 3)
+│   ├── rest.hpp                    <- Original starter rest.hpp
+│   ├── Lab 2 – Developing... (1).pdf <- Lab specification PDF
+│   └── Module 7- Lab 2... .pptx    <- Lecture slides guide
+│
+├── part1/                          <- COMPLETED IMPLEMENTATION (FOR COMPILATION & SUBMISSION)
+│   ├── CMakeLists.txt              <- Updated CMakeLists linking metronome.cpp
+│   ├── main.cpp                    <- Full GPIO, debouncing, threading & REST API
+│   ├── metronome.hpp               <- Updated with beat_samples = 4
+│   ├── metronome.cpp               <- Full tap timing & BPM calculation logic
+│   └── rest.hpp                    <- Endpoint maker + CORS response helper
+│
+└── part2/                          <- COMPLETED HTML DASHBOARD (FOR SUBMISSION)
+    ├── index.html                  <- Web dashboard layout & controls
+    ├── style.css                   <- Dashboard styling & mechanical metronome skin
+    └── app.js                      <- API client, pendulum animation & audio clicks
+```
+
+---
+
+## 3. Hardware Setup & Pin Mapping
 
 | Component | Pin (BCM GPIO) | Physical Header Pin | Function / Logic |
 | :--- | :---: | :---: | :--- |
@@ -27,7 +57,7 @@
 
 ---
 
-## 3. Architecture & Key Technical Decisions
+## 4. Architecture & Key Technical Decisions
 
 ### Part One — Embedded Application (`part1/`)
 - **Timing & Rolling Window (`metronome.hpp`, `metronome.cpp`)**:
@@ -66,47 +96,17 @@
 
 ---
 
-## 4. Repository File Map
-
-```text
-metronome/
-├── Memory.md                       <- Persistent project memory & revision log
-├── contributions_template.md       <- Group contribution report template for submission
-├── Lab 2 – Developing... (1).pdf   <- Lab specification PDF
-├── Module 7- Lab 2... .pptx        <- Lecture slides guide
-│
-├── part1/                          <- PART 1 SUBMISSION FOLDER
-│   ├── CMakeLists.txt              <- CMake configuration
-│   ├── main.cpp                    <- GPIO logic, multi-threading, REST endpoints
-│   ├── metronome.hpp               <- Metronome class declaration (beat_samples = 4)
-│   ├── metronome.cpp               <- Tap timing and BPM calculation
-│   └── rest.hpp                    <- Endpoint factory and CORS response helper
-│
-├── part2/                          <- PART 2 SUBMISSION FOLDER
-│   ├── index.html                  <- Dashboard structure and controls
-│   ├── style.css                   <- Dashboard styles & pendulum animation
-│   └── app.js                      <- API client, audio synthesis & metronome engine
-│
-└── metronome/                      <- Root working folder (mirrored source files)
-    ├── CMakeLists.txt
-    ├── main.cpp
-    ├── metronome.hpp
-    ├── metronome.cpp
-    └── rest.hpp
-```
-
----
-
 ## 5. Ongoing Revision & Quality Checklist
 *Review this checklist whenever reviewing or making additions:*
 
-- [x] **4-Tap Minimum Requirement**: Verified in `metronome.cpp` line 44 (`m_beat_count < beat_samples` returns 0).
-- [x] **Period-Based Calculation**: Verified in `metronome.cpp` (uses deltas between successive taps).
-- [x] **Min/Max Rule**: Verified in `main.cpp` (`min` only tracks values $> 0$; DELETE resets to 0).
-- [x] **LED States**: Verified in `blink()` (Green LED OFF when BPM = 0; Red pulses only on tap during Learn mode).
-- [x] **CORS Support**: Verified in `rest.hpp` (OPTIONS + all responses carry `Access-Control-Allow-Origin: *`).
-- [x] **Debouncing**: Verified in `main.cpp` (50ms debounce window on rising edges).
-- [x] **Zero Build Artifacts in `part1`**: Verified (no `build/` folder included).
+- [x] **Original starter preserved**: `metronome/` contains the professor's original code untouched.
+- [x] **4-Tap Minimum Requirement**: Verified in `part1/metronome.cpp` line 44 (`m_beat_count < beat_samples` returns 0).
+- [x] **Period-Based Calculation**: Verified in `part1/metronome.cpp` (uses deltas between successive taps).
+- [x] **Min/Max Rule**: Verified in `part1/main.cpp` (`min` only tracks values $> 0$; DELETE resets to 0).
+- [x] **LED States**: Verified in `part1/main.cpp` (Green LED OFF when BPM = 0; Red pulses only on tap during Learn mode).
+- [x] **CORS Support**: Verified in `part1/rest.hpp` (OPTIONS + all responses carry `Access-Control-Allow-Origin: *`).
+- [x] **Debouncing**: Verified in `part1/main.cpp` (50ms debounce window on rising edges).
+- [x] **Zero Build Artifacts in `part1`**: Verified (clean source code).
 - [x] **Offline Capability**: Verified (no external CDN links in `part2/index.html`).
 
 ---
@@ -115,4 +115,5 @@ metronome/
 
 | Revision | Timestamp | Author | Summary of Changes |
 | :---: | :---: | :---: | :--- |
-| **v1.0** | 2026-10-12 | Antigravity AI | Initial full implementation: `metronome.cpp`, updated `main.cpp`, `rest.hpp`, `CMakeLists.txt`, `part2` dashboard, `contributions_template.md`, and `Memory.md`. |
+| **v1.0** | 2026-10-12 | Antigravity AI | Initial full implementation: completed `part1/`, created `part2/` dashboard, `contributions_template.md`. |
+| **v1.1** | 2026-10-12 | Antigravity AI | Restored `metronome/` folder to the professor's 100% original untouched skeleton so the user can easily compare original vs implemented code. |
