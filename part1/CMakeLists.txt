@@ -23,4 +23,4 @@ if(NOT cpprestsdk_FOUND)
 endif()
 
 add_executable(main main.cpp metronome.cpp)
-target_link_libraries(main PRIVATE cpprestsdk::cpprest wiringPi boost_system)
+target_link_libraries(main PRIVATE cpprestsdk::cpprest wiringPi boost_system crypto ssl pthread)

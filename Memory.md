@@ -31,7 +31,7 @@ metronome/
 │   └── Module 7- Lab 2... .pptx    <- Lecture slides guide
 │
 ├── part1/                          <- COMPLETED IMPLEMENTATION (FOR COMPILATION & SUBMISSION)
-│   ├── CMakeLists.txt              <- Multi-arch CMakeLists linking wiringPi & cpprestsdk
+│   ├── CMakeLists.txt              <- Links wiringPi, cpprestsdk, crypto, ssl, pthread
 │   ├── main.cpp                    <- Full GPIO, debouncing, threading & REST API
 │   ├── metronome.hpp               <- Updated with beat_samples = 4
 │   ├── metronome.cpp               <- Full tap timing & BPM calculation logic
@@ -63,21 +63,16 @@ metronome/
 - **WiringPi Support**:
   - WiringPi installed from git (`git clone https://github.com/WiringPi/WiringPi.git` $\to$ `./build`).
   - `CMakeLists.txt` includes `/usr/local/include` and `/usr/local/lib` and links `wiringPi`.
+- **Linking Dependencies**:
+  - Links `cpprestsdk::cpprest`, `wiringPi`, `boost_system`, `crypto`, `ssl`, and `pthread` to satisfy modern Debian Bookworm linker requirements (`--no-copy-dt-needed-entries`).
 - **REST API Endpoints (`main.cpp`, `rest.hpp`)**:
-  - Uses `web::http::methods::DEL` instead of `DELETE` (required by `cpprestsdk` to avoid Win32 macro conflict).
+  - Uses `web::http::methods::DEL` instead of `DELETE`.
   - Listens on `http://0.0.0.0:8080`.
-  - Routes support both slash and non-slash variants:
-    - `GET /bpm/`, `PUT /bpm/`: Current BPM.
-    - `GET /bpm/min/`, `DEL /bpm/min/`: Lowest BPM set by user (not 0).
-    - `GET /bpm/max/`, `DEL /bpm/max/`: Highest BPM set by user.
-  - `rest::reply_json()` explicitly adds CORS headers (`Access-Control-Allow-Origin: *`, etc.) to every response to prevent browser fetch blocking.
+  - Routes support both slash and non-slash variants.
+  - `rest::reply_json()` explicitly adds CORS headers (`Access-Control-Allow-Origin: *`, etc.) to every response.
 - **Timing & Rolling Window (`metronome.hpp`, `metronome.cpp`)**:
   - Sample size set to `beat_samples = 4` (storing the 4 most recent taps).
-  - Satisfies rule: *"At least 4 taps are required to create a valid BPM measurement. Notice you should utilize only periods between two presses."*
-  - 4 taps produce 3 interval periods ($\Delta_1, \Delta_2, \Delta_3$).
-  - BPM is calculated as:
-    $$\text{BPM} = \text{round}\left(\frac{60000}{\text{avg\_delta\_ms}}\right)$$
-  - Returns `0` if fewer than 4 taps are recorded, keeping the previous tempo intact.
+  - Satisfies rule: *"At least 4 taps are required to create a valid BPM measurement."*
 
 ---
 
@@ -85,8 +80,9 @@ metronome/
 
 | Revision | Timestamp | Author | Summary of Changes |
 | :---: | :---: | :---: | :--- |
-| **v1.0** | 2026-10-12 | Antigravity AI | Initial full implementation: completed `part1/`, created `part2/` dashboard, `contributions_template.md`. |
-| **v1.1** | 2026-10-12 | Antigravity AI | Restored `metronome/` folder to the professor's 100% original untouched skeleton. |
-| **v1.2** | 2026-10-14 | Antigravity AI | Resolved CMake `find_package(cpprestsdk)` issue on Raspberry Pi OS Bookworm. |
+| **v1.0** | 2026-10-12 | Antigravity AI | Initial full implementation. |
+| **v1.1** | 2026-10-12 | Antigravity AI | Restored `metronome/` folder to original untouched skeleton. |
+| **v1.2** | 2026-10-14 | Antigravity AI | Resolved CMake `find_package(cpprestsdk)` issue on Bookworm. |
 | **v1.4** | 2026-10-14 | Antigravity AI | Configured `main.cpp` and `CMakeLists.txt` to link git-built `wiringPi`. |
-| **v1.5** | 2026-10-14 | Antigravity AI | Fixed C++ REST SDK methods: changed `methods::DELETE` to `methods::DEL` and fixed lambda const qualifier issue in `main.cpp`. |
+| **v1.5** | 2026-10-14 | Antigravity AI | Fixed `methods::DEL` and lambda constness in `main.cpp`. |
+| **v1.6** | 2026-10-14 | Antigravity AI | Added `crypto`, `ssl`, and `pthread` to `target_link_libraries` in `CMakeLists.txt` for Debian 12 OpenSSL 3.0 linker compatibility. |
