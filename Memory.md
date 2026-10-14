@@ -31,7 +31,7 @@ metronome/
 │   └── Module 7- Lab 2... .pptx    <- Lecture slides guide
 │
 ├── part1/                          <- COMPLETED IMPLEMENTATION (FOR COMPILATION & SUBMISSION)
-│   ├── CMakeLists.txt              <- Updated CMakeLists linking metronome.cpp
+│   ├── CMakeLists.txt              <- Multi-arch resilient CMakeLists linking metronome.cpp
 │   ├── main.cpp                    <- Full GPIO, debouncing, threading & REST API
 │   ├── metronome.hpp               <- Updated with beat_samples = 4
 │   ├── metronome.cpp               <- Full tap timing & BPM calculation logic
@@ -79,6 +79,7 @@ metronome/
   - Dedicated blinking thread operates with 10ms responsive sleep slices for instant reaction to tempo changes and tap pulses.
   - Button polling runs at 10ms with 50ms software debouncing and edge-detection.
 - **Build System (`CMakeLists.txt`)**:
+  - Multiarch compatible search for `cpprestsdk` (supports 64-bit `aarch64`, 32-bit `armhf`, Debian 12 Bookworm, and legacy Bullseye).
   - Compiles `main.cpp` and `metronome.cpp`.
   - Links `cpprestsdk::cpprest`, `wiringPi`, and `boost_system`.
 
@@ -100,6 +101,7 @@ metronome/
 *Review this checklist whenever reviewing or making additions:*
 
 - [x] **Original starter preserved**: `metronome/` contains the professor's original code untouched.
+- [x] **CMake Multiarch Search**: `part1/CMakeLists.txt` resolves `cpprestsdk` across both 32-bit and 64-bit Raspberry Pi OS.
 - [x] **4-Tap Minimum Requirement**: Verified in `part1/metronome.cpp` line 44 (`m_beat_count < beat_samples` returns 0).
 - [x] **Period-Based Calculation**: Verified in `part1/metronome.cpp` (uses deltas between successive taps).
 - [x] **Min/Max Rule**: Verified in `part1/main.cpp` (`min` only tracks values $> 0$; DELETE resets to 0).
@@ -117,3 +119,4 @@ metronome/
 | :---: | :---: | :---: | :--- |
 | **v1.0** | 2026-10-12 | Antigravity AI | Initial full implementation: completed `part1/`, created `part2/` dashboard, `contributions_template.md`. |
 | **v1.1** | 2026-10-12 | Antigravity AI | Restored `metronome/` folder to the professor's 100% original untouched skeleton so the user can easily compare original vs implemented code. |
+| **v1.2** | 2026-10-14 | Antigravity AI | Resolved CMake `find_package(cpprestsdk)` issue on Raspberry Pi OS (Debian 12 Bookworm) by adding multi-arch prefix fallback paths. |
