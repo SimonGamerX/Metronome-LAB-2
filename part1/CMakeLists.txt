@@ -4,6 +4,9 @@ project(main)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+include_directories(/usr/local/include /usr/include)
+link_directories(/usr/local/lib /usr/lib)
+
 # Search for cpprestsdk using standard paths and common Raspberry Pi multiarch paths
 find_package(cpprestsdk QUIET)
 

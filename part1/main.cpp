@@ -83,17 +83,7 @@ void handle_put_bpm(web::http::http_request msg) {
 
 			rest::reply_json(msg, 200, web::json::value::number(g_current_bpm.load()));
 		} catch (...) {
-			// Fallback: try reading as plain string / number
-			msg.extract_string().then([msg](pplx::task<utility::string_t> sTask) {
-				try {
-					auto str = sTask.get();
-					size_t new_bpm = std::stoul(str);
-					set_bpm(new_bpm);
-					rest::reply_json(msg, 200, web::json::value::number(g_current_bpm.load()));
-				} catch (...) {
-					rest::reply_json(msg, 400, web::json::value::string(U("Invalid BPM value")));
-				}
-			});
+			rest::reply_json(msg, 400, web::json::value::string(U("Invalid BPM value")));
 		}
 	});
 }
@@ -210,19 +200,19 @@ int main() {
 
 	auto bpm_min_rest = rest::make_endpoint("/bpm/min");
 	bpm_min_rest.support(web::http::methods::GET, handle_get_min);
-	bpm_min_rest.support(web::http::methods::DELETE, handle_delete_min);
+	bpm_min_rest.support(web::http::methods::DEL, handle_delete_min);
 
 	auto bpm_min_slash_rest = rest::make_endpoint("/bpm/min/");
 	bpm_min_slash_rest.support(web::http::methods::GET, handle_get_min);
-	bpm_min_slash_rest.support(web::http::methods::DELETE, handle_delete_min);
+	bpm_min_slash_rest.support(web::http::methods::DEL, handle_delete_min);
 
 	auto bpm_max_rest = rest::make_endpoint("/bpm/max");
 	bpm_max_rest.support(web::http::methods::GET, handle_get_max);
-	bpm_max_rest.support(web::http::methods::DELETE, handle_delete_max);
+	bpm_max_rest.support(web::http::methods::DEL, handle_delete_max);
 
 	auto bpm_max_slash_rest = rest::make_endpoint("/bpm/max/");
 	bpm_max_slash_rest.support(web::http::methods::GET, handle_get_max);
-	bpm_max_slash_rest.support(web::http::methods::DELETE, handle_delete_max);
+	bpm_max_slash_rest.support(web::http::methods::DEL, handle_delete_max);
 
 	// Start endpoints
 	bpm_rest.open().wait();
