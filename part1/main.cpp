@@ -15,10 +15,10 @@ using namespace std::chrono_literals;
 #include "rest.hpp"
 
 // ** Remember to update these numbers to your personal setup. **
-#define LED_RED   17
-#define LED_GREEN 27
-#define BTN_MODE  23
-#define BTN_TAP   24
+#define LED_RED   16
+#define LED_GREEN 13
+#define BTN_MODE  21
+#define BTN_TAP   26
 
 // Metronome engine instance
 static metronome g_metronome;
