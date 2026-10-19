@@ -4,6 +4,7 @@
 #include <atomic>
 #include <mutex>
 #include <cmath>
+#include <string>
 
 using namespace std::chrono_literals;
 
@@ -49,6 +50,7 @@ void set_bpm(size_t bpm) {
 
 // REST handler: GET /bpm/
 void handle_get_bpm(web::http::http_request msg) {
+	std::cout << "[REST] GET /bpm/ -> " << g_current_bpm.load() << std::endl;
 	rest::reply_json(msg, 200, web::json::value::number(g_current_bpm.load()));
 }
 
@@ -83,6 +85,7 @@ void handle_put_bpm(web::http::http_request msg) {
 
 			rest::reply_json(msg, 200, web::json::value::number(g_current_bpm.load()));
 		} catch (...) {
+			std::cerr << "[REST ERROR] Invalid PUT /bpm/ payload" << std::endl;
 			rest::reply_json(msg, 400, web::json::value::string(U("Invalid BPM value")));
 		}
 	});
@@ -90,6 +93,7 @@ void handle_put_bpm(web::http::http_request msg) {
 
 // REST handler: GET /bpm/min/
 void handle_get_min(web::http::http_request msg) {
+	std::cout << "[REST] GET /bpm/min/ -> " << g_min_bpm.load() << std::endl;
 	rest::reply_json(msg, 200, web::json::value::number(g_min_bpm.load()));
 }
 
@@ -103,6 +107,7 @@ void handle_delete_min(web::http::http_request msg) {
 
 // REST handler: GET /bpm/max/
 void handle_get_max(web::http::http_request msg) {
+	std::cout << "[REST] GET /bpm/max/ -> " << g_max_bpm.load() << std::endl;
 	rest::reply_json(msg, 200, web::json::value::number(g_max_bpm.load()));
 }
 
@@ -112,6 +117,76 @@ void handle_delete_max(web::http::http_request msg) {
 	g_max_bpm = 0;
 	std::cout << "[REST] DELETE /bpm/max/ -> reset to 0" << std::endl;
 	rest::reply_json(msg, 200, web::json::value::number(0));
+}
+
+// Central Request Dispatcher (Handles /bpm, /bpm/min, /bpm/max with/without trailing slash and CORS)
+void handle_request(web::http::http_request msg) {
+	auto method = msg.method();
+	std::string path = msg.relative_uri().path();
+
+	// Normalise path (remove trailing slash except for root "/")
+	std::string norm_path = path;
+	while (norm_path.length() > 1 && norm_path.back() == '/') {
+		norm_path.pop_back();
+	}
+
+	// Handle CORS preflight
+	if (method == web::http::methods::OPTIONS) {
+		rest::allowAll(msg);
+		return;
+	}
+
+	// Root / Information
+	if (norm_path.empty() || norm_path == "/") {
+		web::json::value info;
+		info[U("service")] = web::json::value::string(U("Metronome Thing REST API"));
+		info[U("status")] = web::json::value::string(U("online"));
+		info[U("bpm")] = web::json::value::number(g_current_bpm.load());
+		info[U("min")] = web::json::value::number(g_min_bpm.load());
+		info[U("max")] = web::json::value::number(g_max_bpm.load());
+		rest::reply_json(msg, 200, info);
+		return;
+	}
+
+	// Route: /bpm
+	if (norm_path == "/bpm") {
+		if (method == web::http::methods::GET) {
+			handle_get_bpm(msg);
+		} else if (method == web::http::methods::PUT) {
+			handle_put_bpm(msg);
+		} else {
+			msg.reply(405);
+		}
+		return;
+	}
+
+	// Route: /bpm/min
+	if (norm_path == "/bpm/min") {
+		if (method == web::http::methods::GET) {
+			handle_get_min(msg);
+		} else if (method == web::http::methods::DEL) {
+			handle_delete_min(msg);
+		} else {
+			msg.reply(405);
+		}
+		return;
+	}
+
+	// Route: /bpm/max
+	if (norm_path == "/bpm/max") {
+		if (method == web::http::methods::GET) {
+			handle_get_max(msg);
+		} else if (method == web::http::methods::DEL) {
+			handle_delete_max(msg);
+		} else {
+			msg.reply(405);
+		}
+		return;
+	}
+
+	// Not Found
+	std::cout << "[REST] 404 Not Found: " << path << std::endl;
+	rest::reply_json(msg, 404, web::json::value::string(U("Endpoint not found")));
 }
 
 // Separate thread managing LED behavior
@@ -173,125 +248,121 @@ void blink() {
 
 int main() {
 	// 1. Initialize WiringPi using Broadcom (BCM) GPIO numbering
-	wiringPiSetupGpio();
+	bool gpio_available = true;
+	if (wiringPiSetupGpio() < 0) {
+		std::cerr << "--------------------------------------------------------" << std::endl;
+		std::cerr << "[WARNING] wiringPiSetupGpio() failed to access GPIO!" << std::endl;
+		std::cerr << "          To enable physical LEDs & buttons, run with: sudo ./main" << std::endl;
+		std::cerr << "          Starting in simulation mode (REST API fully active)..." << std::endl;
+		std::cerr << "--------------------------------------------------------" << std::endl;
+		gpio_available = false;
+	} else {
+		// 2. Set pin modes
+		pinMode(LED_RED, OUTPUT);
+		pinMode(LED_GREEN, OUTPUT);
+		pinMode(BTN_MODE, INPUT);
+		pinMode(BTN_TAP, INPUT);
 
-	// 2. Set pin modes
-	pinMode(LED_RED, OUTPUT);
-	pinMode(LED_GREEN, OUTPUT);
-	pinMode(BTN_MODE, INPUT);
-	pinMode(BTN_TAP, INPUT);
+		// Enable internal pull-down resistors (pressed = HIGH)
+		pullUpDnControl(BTN_MODE, PUD_DOWN);
+		pullUpDnControl(BTN_TAP, PUD_DOWN);
 
-	// Enable internal pull-down resistors (pressed = HIGH)
-	pullUpDnControl(BTN_MODE, PUD_DOWN);
-	pullUpDnControl(BTN_TAP, PUD_DOWN);
+		// Ensure initial LED states are OFF
+		digitalWrite(LED_RED, LOW);
+		digitalWrite(LED_GREEN, LOW);
+	}
 
-	// Ensure initial LED states are OFF
-	digitalWrite(LED_RED, LOW);
-	digitalWrite(LED_GREEN, LOW);
+	// 3. Configure and start REST Server on port 8080
+	http_listener listener;
+	try {
+		listener = rest::make_endpoint("");
+		listener.support(web::http::methods::GET, handle_request);
+		listener.support(web::http::methods::PUT, handle_request);
+		listener.support(web::http::methods::DEL, handle_request);
+		listener.support(web::http::methods::OPTIONS, handle_request);
+		listener.open().wait();
 
-	// 3. Configure REST endpoints (both with and without trailing slash)
-	auto bpm_rest = rest::make_endpoint("/bpm");
-	bpm_rest.support(web::http::methods::GET, handle_get_bpm);
-	bpm_rest.support(web::http::methods::PUT, handle_put_bpm);
+		std::cout << "==========================================" << std::endl;
+		std::cout << " Metronome Thing Service is Running!     " << std::endl;
+		std::cout << " Port: 8080 (http://0.0.0.0:8080/)       " << std::endl;
+		std::cout << " Endpoints: /bpm/, /bpm/min/, /bpm/max/  " << std::endl;
+		std::cout << " Hardware GPIO: " << (gpio_available ? "ACTIVE" : "INACTIVE (Simulation)") << std::endl;
+		std::cout << " Mode: PLAY (default BPM = 0, LED OFF)   " << std::endl;
+		std::cout << "==========================================" << std::endl;
+	} catch (const std::exception& e) {
+		std::cerr << "[FATAL ERROR] Failed to bind HTTP listener on port 8080: " << e.what() << std::endl;
+		std::cerr << "Check if port 8080 is in use: sudo ss -tulpn | grep 8080" << std::endl;
+		return 1;
+	}
 
-	auto bpm_slash_rest = rest::make_endpoint("/bpm/");
-	bpm_slash_rest.support(web::http::methods::GET, handle_get_bpm);
-	bpm_slash_rest.support(web::http::methods::PUT, handle_put_bpm);
+	// 4. Start LED blinking thread (if GPIO available)
+	if (gpio_available) {
+		std::thread blink_thread(blink);
+		blink_thread.detach();
 
-	auto bpm_min_rest = rest::make_endpoint("/bpm/min");
-	bpm_min_rest.support(web::http::methods::GET, handle_get_min);
-	bpm_min_rest.support(web::http::methods::DEL, handle_delete_min);
+		// 5. Button polling loop with rising-edge detection and debouncing
+		bool mode_prev = false;
+		bool tap_prev = false;
+		auto last_mode_press = std::chrono::steady_clock::now();
+		auto last_tap_press = std::chrono::steady_clock::now();
+		const auto debounce_time = 50ms;
 
-	auto bpm_min_slash_rest = rest::make_endpoint("/bpm/min/");
-	bpm_min_slash_rest.support(web::http::methods::GET, handle_get_min);
-	bpm_min_slash_rest.support(web::http::methods::DEL, handle_delete_min);
+		while (true) {
+			auto now = std::chrono::steady_clock::now();
+			bool mode_curr = (digitalRead(BTN_MODE) == HIGH);
+			bool tap_curr = (digitalRead(BTN_TAP) == HIGH);
 
-	auto bpm_max_rest = rest::make_endpoint("/bpm/max");
-	bpm_max_rest.support(web::http::methods::GET, handle_get_max);
-	bpm_max_rest.support(web::http::methods::DEL, handle_delete_max);
+			// Rising edge on Mode button (toggle Play / Learn)
+			if (mode_curr && !mode_prev && (now - last_mode_press >= debounce_time)) {
+				last_mode_press = now;
 
-	auto bpm_max_slash_rest = rest::make_endpoint("/bpm/max/");
-	bpm_max_slash_rest.support(web::http::methods::GET, handle_get_max);
-	bpm_max_slash_rest.support(web::http::methods::DEL, handle_delete_max);
-
-	// Start endpoints
-	bpm_rest.open().wait();
-	try { bpm_slash_rest.open().wait(); } catch (...) {}
-
-	bpm_min_rest.open().wait();
-	try { bpm_min_slash_rest.open().wait(); } catch (...) {}
-
-	bpm_max_rest.open().wait();
-	try { bpm_max_slash_rest.open().wait(); } catch (...) {}
-
-	std::cout << "==========================================" << std::endl;
-	std::cout << " Metronome Thing Service is Running!     " << std::endl;
-	std::cout << " Endpoints: /bpm/, /bpm/min/, /bpm/max/  " << std::endl;
-	std::cout << " Port: 8080                              " << std::endl;
-	std::cout << " Mode: PLAY (default BPM = 0, LED OFF)   " << std::endl;
-	std::cout << "==========================================" << std::endl;
-
-	// 4. Start LED blinking thread
-	std::thread blink_thread(blink);
-	blink_thread.detach();
-
-	// 5. Button polling loop with rising-edge detection and debouncing
-	bool mode_prev = false;
-	bool tap_prev = false;
-	auto last_mode_press = std::chrono::steady_clock::now();
-	auto last_tap_press = std::chrono::steady_clock::now();
-	const auto debounce_time = 50ms;
-
-	while (true) {
-		auto now = std::chrono::steady_clock::now();
-		bool mode_curr = (digitalRead(BTN_MODE) == HIGH);
-		bool tap_curr = (digitalRead(BTN_TAP) == HIGH);
-
-		// Rising edge on Mode button (toggle Play / Learn)
-		if (mode_curr && !mode_prev && (now - last_mode_press >= debounce_time)) {
-			last_mode_press = now;
-
-			if (!g_is_learn_mode.load()) {
-				// Transition PLAY -> LEARN
-				std::cout << "\n>>> Entering LEARN mode. Tap BTN_TAP (PB1) at least 4 times to set tempo..." << std::endl;
-				g_is_learn_mode = true;
-				g_metronome.start_timing();
-			} else {
-				// Transition LEARN -> PLAY
-				g_metronome.stop_timing();
-				g_is_learn_mode = false;
-				size_t learned_bpm = g_metronome.get_bpm();
-
-				std::cout << "\n>>> Leaving LEARN mode. Calculating tempo..." << std::endl;
-				if (learned_bpm > 0) {
-					set_bpm(learned_bpm);
-					std::cout << ">>> Valid BPM learned: " << learned_bpm << " BPM!" << std::endl;
-					std::cout << ">>> Stats: Current = " << g_current_bpm.load()
-					          << ", Min = " << g_min_bpm.load()
-					          << ", Max = " << g_max_bpm.load() << std::endl;
+				if (!g_is_learn_mode.load()) {
+					// Transition PLAY -> LEARN
+					std::cout << "\n>>> Entering LEARN mode. Tap BTN_TAP (PB1) at least 4 times to set tempo..." << std::endl;
+					g_is_learn_mode = true;
+					g_metronome.start_timing();
 				} else {
-					std::cout << ">>> Not enough taps (< 4). Keeping previous BPM: "
-					          << g_current_bpm.load() << " BPM." << std::endl;
+					// Transition LEARN -> PLAY
+					g_metronome.stop_timing();
+					g_is_learn_mode = false;
+					size_t learned_bpm = g_metronome.get_bpm();
+
+					std::cout << "\n>>> Leaving LEARN mode. Calculating tempo..." << std::endl;
+					if (learned_bpm > 0) {
+						set_bpm(learned_bpm);
+						std::cout << ">>> Valid BPM learned: " << learned_bpm << " BPM!" << std::endl;
+						std::cout << ">>> Stats: Current = " << g_current_bpm.load()
+						          << ", Min = " << g_min_bpm.load()
+						          << ", Max = " << g_max_bpm.load() << std::endl;
+					} else {
+						std::cout << ">>> Not enough taps (< 4). Keeping previous BPM: "
+						          << g_current_bpm.load() << " BPM." << std::endl;
+					}
 				}
 			}
-		}
 
-		// Rising edge on Tap button (records tap in Learn mode)
-		if (tap_curr && !tap_prev && (now - last_tap_press >= debounce_time)) {
-			last_tap_press = now;
+			// Rising edge on Tap button (records tap in Learn mode)
+			if (tap_curr && !tap_prev && (now - last_tap_press >= debounce_time)) {
+				last_tap_press = now;
 
-			if (g_is_learn_mode.load()) {
-				g_metronome.tap();
-				g_pulse_time = now;
-				g_red_pulse = true;
-				std::cout << "  * Tap recorded! (Red LED pulse)" << std::endl;
+				if (g_is_learn_mode.load()) {
+					g_metronome.tap();
+					g_pulse_time = now;
+					g_red_pulse = true;
+					std::cout << "  * Tap recorded! (Red LED pulse)" << std::endl;
+				}
 			}
+
+			mode_prev = mode_curr;
+			tap_prev = tap_curr;
+
+			std::this_thread::sleep_for(10ms);
 		}
-
-		mode_prev = mode_curr;
-		tap_prev = tap_curr;
-
-		std::this_thread::sleep_for(10ms);
+	} else {
+		// Keep server alive in simulation mode
+		while (true) {
+			std::this_thread::sleep_for(1s);
+		}
 	}
 
 	return 0;

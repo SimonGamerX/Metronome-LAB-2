@@ -166,6 +166,9 @@ function setupEventListeners() {
 // URL Helper
 function getBaseUrl() {
   let url = apiUrlInput.value.trim();
+  if (!url.startsWith("http://") && !url.startsWith("https://")) {
+    url = "http://" + url;
+  }
   if (url.endsWith("/")) {
     url = url.slice(0, -1);
   }
